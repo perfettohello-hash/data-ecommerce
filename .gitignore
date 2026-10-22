@@ -1,0 +1,11 @@
+# Local Netlify folder
+.netlify
+
+# Dependencies and generated output
+node_modules/
+dist/
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
