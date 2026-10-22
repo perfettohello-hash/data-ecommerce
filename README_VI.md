@@ -51,12 +51,14 @@ Cần cấu hình các biến môi trường bên dưới trước khi gọi API
 - Mã nguồn lọc các dòng có ngày, mã đơn và tên sản phẩm; cần đối chiếu quy tắc trạng thái để quyết định có loại đơn hủy/hoàn hay không.
 - Số lượng đơn được tính theo mã `Số PO` duy nhất, không phải số dòng sản phẩm.
 
-## Tổng hợp tháng và năm
+## Horizontal revenue reports
 
-Bảng tháng có đủ 12 tháng, bộ chọn năm, doanh thu VND, số PO duy nhất và tổng số lượng bán. Tổng số đơn năm được đếm duy nhất trên cả năm, không cộng số đơn từng tháng khi cùng PO xuất hiện ở nhiều tháng. Hai bảng tổng hợp áp dụng bộ lọc shop/brand/category nhưng dùng năm riêng, không bị giới hạn bởi kỳ tuần/tháng của biểu đồ phía trên. Ngày dạng ngày trong sheet được giữ theo lịch Việt Nam; timestamp có múi giờ được chuyển sang Asia/Ho_Chi_Minh.
+The dashboard uses English labels and VND values with comma separators and up to two decimal places. Calculations retain source precision; display rounding can create small differences when adding displayed values. All summary tables use one row per available year and columns for Jan through Dec plus TOTAL. Empty months show 0. Monthly Revenue can also show Orders or Units Sold. Order counts use unique PO IDs; annual order counts are distinct across the whole year.
 
-Ánh xạ CAT đã đối chiếu tên sản phẩm và `ID Per`: `Coffee maker` → Máy pha cà phê; `Coffee` → Cà phê; `Hygiene products` → Hóa chất. Các nhãn tiếng Việt tương đương cũng được nhận diện. Tất cả danh mục còn lại (bao gồm máy xay, phụ kiện, trà) và CAT trống vào Khác / Chưa phân loại. Không tự suy đoán nhóm từ tên hoặc mã sản phẩm. Tổng bốn nhóm luôn bằng doanh thu năm.
+The three main category tables use the verified CAT mapping: Coffee maker → Coffee Maker, Coffee → Coffee, and Hygiene products → Hygiene Products. Equivalent explicit Vietnamese labels are accepted. All other or missing categories stay in Other / Unclassified, which has its own monthly table. The Yearly Category Comparison reconciles the four groups with total revenue. Product names and codes do not override category labels.
 
-PO có hai cột `Số PO`; parser giữ ưu tiên cột cuối như phiên bản trước, dùng cột trước khi cột cuối trống. Giá hoặc số lượng thiếu/không hợp lệ bị bỏ qua với cảnh báo; giá 0 hợp lệ được giữ. Không thay đổi quy tắc trạng thái đơn hàng.
+All tables, KPIs and charts share the Platform / Shop, Brand, Category and Report Period filters. Week, Month and Year restrict the values to the selected period, while retaining all available years as rows. Select All dates to compare complete years. Date-only sheet values represent Vietnam calendar dates; timestamps with an offset are converted to Asia/Ho_Chi_Minh.
 
-API `/api/dashboard` giữ `orders`, `traffic`, `warnings`, `updatedAt` và bổ sung `reports.shops`, `reports.monthly`, `reports.yearly` trên toàn bộ dữ liệu hợp lệ. Frontend sử dụng cùng hàm tổng hợp cho các bộ lọc. Chạy kiểm thử với `npm test`. Chạy preview có Functions bằng `netlify dev --port 8889`.
+Shop names come directly from physical column C (PFT ID) without translation, capitalization changes or marketplace grouping. Only empty cells use Unidentified. PO has two Số PO headers: the parser keeps the existing last-column preference, falling back to the earlier value if needed. Rows with missing or invalid price/quantity/date data are skipped with an English warning; valid zero prices remain included. Order-status inclusion rules are unchanged.
+
+The API at /api/dashboard retains orders, traffic, warnings and updatedAt, plus reports.shops, reports.monthly and reports.yearly. The frontend shares the same calculation functions. Credentials stay server-side. Run tests with npm test and the local preview with netlify dev --port 8889.

@@ -1,12 +1,12 @@
-import {isISODate} from './date.js';
+import {isISODate, weekStart} from './date.js';
 
-export const GROUPS = ['Máy pha cà phê', 'Cà phê', 'Hóa chất', 'Khác / Chưa phân loại'];
+export const GROUPS = ['Coffee Maker', 'Coffee', 'Hygiene Products', 'Other / Unclassified'];
 // Verified against CAT, product names, and ID Per in the PO sheet. No name/code guessing.
 export function productGroup(category) {
   const mapping = new Map([
-    ['Coffee maker', GROUPS[0]], ['Máy pha cà phê', GROUPS[0]],
+    ['Coffee maker', GROUPS[0]], ['Coffee Maker', GROUPS[0]], ['Máy pha cà phê', GROUPS[0]],
     ['Coffee', GROUPS[1]], ['Cà phê', GROUPS[1]],
-    ['Hygiene products', GROUPS[2]], ['Hóa chất', GROUPS[2]],
+    ['Hygiene products', GROUPS[2]], ['Hygiene Products', GROUPS[2]], ['Hóa chất', GROUPS[2]],
   ]);
   return mapping.get(category) || GROUPS[3];
 }
@@ -59,4 +59,33 @@ export function shopSummary(orders) {
   const shops = new Map();
   for (const row of orders) shops.set(row.platform, (shops.get(row.platform)||0)+row.price*row.qty);
   return [...shops].map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+}
+
+// Display labels only; source shop names are never translated.
+export function categoryLabel(value) {
+  const main = productGroup(value);
+  if (main !== GROUPS[3]) return main;
+  const labels = new Map([
+    ['Components / Other','Components / Other'], ['Accessory','Accessories'], ['Accessories','Accessories'],
+    ['Tea','Tea'], ['Coffee grinder','Coffee Grinder'], ['Coffee Grinder','Coffee Grinder'],
+    ['Air fryer','Air Fryer'], ['Air Fryer','Air Fryer'], ['Toaster','Toaster'],
+    ['Oil heater','Oil Heater'], ['Oil Heater','Oil Heater'], ['Electric kettle','Electric Kettle'], ['Electric Kettle','Electric Kettle'],
+    ['Mixer','Mixer'], ['Milk frother','Milk Frother'], ['Milk Frother','Milk Frother'],
+    ['Blender','Blender'], ['Egg beater','Egg Beater'], ['Egg Beater','Egg Beater'],
+  ]);
+  return labels.get(value) || GROUPS[3];
+}
+
+export function inReportPeriod(value, period, selectedDate) {
+  if (!isISODate(value)) return false;
+  if (period === 'all') return true;
+  if (!isISODate(selectedDate)) return false;
+  if (period === 'year') return value.slice(0,4) === selectedDate.slice(0,4);
+  if (period === 'month') return value.slice(0,7) === selectedDate.slice(0,7);
+  return weekStart(value) === weekStart(selectedDate);
+}
+
+export function monthlyMatrix(orders, years, group) {
+  const rows = group ? orders.filter(row=>productGroup(row.category)===group) : orders;
+  return [...years].sort((a,b)=>a-b).map(year=>monthlySummary(rows, year));
 }

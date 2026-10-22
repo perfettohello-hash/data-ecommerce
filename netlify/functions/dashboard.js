@@ -3,7 +3,7 @@ import { parseDashboard } from "../lib/dashboard-data.js";
 
 const authFromEnv = () => {
   const raw = Netlify.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
-  if (!raw) throw new Error("Thiếu biến môi trường GOOGLE_SERVICE_ACCOUNT_JSON");
+  if (!raw) throw new Error("Missing Google service account settings.");
   return new google.auth.GoogleAuth({
     credentials: parseCredentials(raw),
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -15,7 +15,7 @@ function parseCredentials(raw) {
     if (!credentials.client_email || !credentials.private_key) throw new Error();
     return credentials;
   } catch {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON không hợp lệ. Kiểm tra cấu hình phía máy chủ.");
+    throw new Error("Invalid Google service account settings. Check the server configuration.");
   }
 }
 async function readGoogleSheets() {
@@ -38,10 +38,10 @@ export async function dashboardResponse(readSheets = readGoogleSheets) {
     return Response.json(parseDashboard(poValues, trafficValues), {headers:{"Cache-Control":"no-store"}});
   } catch (e) {
     const status = Number(e.response?.status || e.code);
-    const error = status === 403 ? "Không có quyền đọc Google Sheets. Kiểm tra quyền Viewer của tài khoản dịch vụ và Google Sheets API."
-      : status === 404 ? "Không tìm thấy Google Sheet. Kiểm tra GOOGLE_SHEET_ID và quyền truy cập."
-      : status === 400 ? "Không đọc được vùng dữ liệu. Kiểm tra các tab PO và TRAFFIC."
-      : "Không tải được dữ liệu Google Sheets. Kiểm tra cấu hình tài khoản dịch vụ và thử lại.";
+    const error = status === 403 ? "Cannot access Google Sheets. Check Viewer access and make sure the Sheets API is enabled."
+      : status === 404 ? "Google Sheet not found. Check the sheet ID and access settings."
+      : status === 400 ? "Cannot read the sheet data. Check the PO and TRAFFIC tabs."
+      : "Cannot load Google Sheets data. Check the connection settings and try again.";
     return Response.json({error}, {status:502, headers:{"Cache-Control":"no-store"}});
   }
 }

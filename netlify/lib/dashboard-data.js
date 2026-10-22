@@ -49,9 +49,9 @@ export function parseDashboard(poValues=[], trafficValues=[]) {
     const qty = numberValue(get(['SL']));
     return {date:sheetDate(get(['Đặt hàng'])), orderId:clean(get(['Số PO'])),
       product:clean(get(['Tên sản phẩm'])), productCode:clean(get(['ID Per'])),
-      price, qty, revenue:price*qty, brand:clean(get(['BRAND'])) || 'Chưa phân loại',
-      category:clean(get(['CAT'])) || 'Chưa phân loại', status:clean(get(['Trạng thái'])),
-      platform:shop.trim() ? shop : 'Chưa xác định'};
+      price, qty, revenue:price*qty, brand:clean(get(['BRAND'])) || 'Unclassified',
+      category:clean(get(['CAT'])) || 'Unclassified', status:clean(get(['Trạng thái'])),
+      platform:shop.trim() ? shop : 'Unidentified'};
   }).filter(validOrder);
   const [trafficHeaders=[], ...trafficRows] = trafficValues;
   const traffic = trafficRows.map(row=>{
@@ -64,10 +64,10 @@ export function parseDashboard(poValues=[], trafficValues=[]) {
   return {orders, traffic, updatedAt:new Date().toISOString(),
     reports:{shops:shopSummary(orders), yearly, monthly:yearly.map(({year})=>monthlySummary(orders,year))},
     warnings:[
-      'Doanh thu được tính bằng Giá thực bán × SL. Ngày báo cáo theo múi giờ Việt Nam.',
-      ...(rows.length>orders.length ? [`Đã bỏ qua ${rows.length-orders.length} dòng trống hoặc có ngày, mã đơn, sản phẩm, giá, số lượng không hợp lệ.`] : []),
-      ...(!traffic.length ? ['Sheet TRAFFIC chưa có dữ liệu hợp lệ cho Visits/Potential buyers.'] : []),
-      ...(otherRows ? [`${otherRows} dòng thuộc danh mục khác hoặc chưa được ánh xạ; doanh thu được giữ trong Khác / Chưa phân loại. Không suy đoán nhóm từ tên hoặc mã sản phẩm.`] : []),
-      ...(orders.some(row=>row.platform==='Chưa xác định') ? ['Một số đơn hàng thiếu shop tại cột C.'] : []),
+      'Revenue = selling price × quantity. Report dates use Vietnam time.',
+      ...(rows.length>orders.length ? [`Skipped ${rows.length-orders.length} empty or incomplete rows. Each order needs a valid date, order ID, product, price, and quantity.`] : []),
+      ...(!traffic.length ? ['No valid Visits or Potential Buyers data is available in the TRAFFIC sheet.'] : []),
+      ...(otherRows ? [`${otherRows} order lines are in Other / Unclassified. Only verified category labels are mapped; product names and codes are not used to guess categories.`] : []),
+      ...(orders.some(row=>row.platform==='Unidentified') ? ['Some orders have no shop in column C and are shown as Unidentified.'] : []),
     ]};
 }
