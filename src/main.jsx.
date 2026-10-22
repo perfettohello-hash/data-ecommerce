@@ -1,0 +1,62 @@
+import React, {useEffect, useMemo, useState} from "react";
+import {createRoot} from "react-dom/client";
+import {ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, LineChart, Line, Legend} from "recharts";
+import {RefreshCw, ShoppingBag, Package, Eye, Users, TrendingUp, CalendarDays, AlertCircle} from "lucide-react";
+import "./style.css";
+
+const money = n => new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(n||0);
+const integer = n => new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(n||0);
+const COLORS=["#2563eb","#16a34a","#f59e0b","#8b5cf6","#e11d48","#0891b2","#64748b"];
+const weekStart = d => { const x=new Date(d+"T12:00:00"); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.toISOString().slice(0,10); };
+const monthKey = d => d?.slice(0,7)||"";
+function App(){
+ const [data,setData]=useState({orders:[],traffic:[],warnings:[]});
+ const [loading,setLoading]=useState(true),[error,setError]=useState("");
+ const [period,setPeriod]=useState("week"),[date,setDate]=useState(new Date().toISOString().slice(0,10));
+ const [platform,setPlatform]=useState("all"),[brand,setBrand]=useState("all"),[category,setCategory]=useState("all");
+ const load=async()=>{setLoading(true);setError("");try{const r=await fetch("/api/dashboard?ts="+Date.now());const j=await r.json();if(!r.ok)throw new Error(j.detail||j.error||"API error");setData(j);}catch(e){setError(e.message);}finally{setLoading(false);}};
+ useEffect(()=>{load();},[]);
+ const filtered=useMemo(()=>data.orders.filter(r=>{
+   const key=period==="month"?monthKey(r.date)===monthKey(date):weekStart(r.date)===weekStart(date);
+   return key&&(platform==="all"||r.platform===platform)&&(brand==="all"||r.brand===brand)&&(category==="all"||r.category===category);
+ }),[data,period,date,platform,brand,category]);
+ const revenue=filtered.reduce((s,r)=>s+r.revenue,0), qty=filtered.reduce((s,r)=>s+r.qty,0);
+ const orders=new Set(filtered.map(r=>r.orderId)).size;
+ const sumBy=(key)=>Object.entries(filtered.reduce((a,r)=>(a[r[key]||"Chưa phân loại"]=(a[r[key]||"Chưa phân loại"]||0)+r.revenue,a),{})).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);
+ const platforms=sumBy("platform"), categories=sumBy("category"), brands=sumBy("brand");
+ const traffic=data.traffic.filter(t=>period==="month"?monthKey(t.start)===monthKey(date):weekStart(t.start)===weekStart(date));
+ const visits=traffic.reduce((s,t)=>s+t.visits,0), buyers=traffic.reduce((s,t)=>s+t.buyers,0);
+ const daily=Object.entries(filtered.reduce((a,r)=>{const k=r.date;a[k]=(a[k]||0)+r.revenue;return a;},{})).sort(([a],[b])=>a.localeCompare(b)).map(([date,revenue])=>({date:date.slice(5),revenue}));
+ const platformNames=[...new Set(data.orders.map(r=>r.platform))],brandNames=[...new Set(data.orders.map(r=>r.brand))],catNames=[...new Set(data.orders.map(r=>r.category))];
+ return <div className="shell">
+  <header><div className="brandmark">P</div><div><h1>Weekly Report — E-commerce</h1><p>Perfetto · Sales & Traffic Dashboard</p></div><div className="headerRight"><span className="live">● Google Sheets</span><button onClick={load}><RefreshCw size={16}/> Làm mới</button></div></header>
+  <section className="filters">
+   <label>Kỳ báo cáo<select value={period} onChange={e=>setPeriod(e.target.value)}><option value="week">Theo tuần</option><option value="month">Theo tháng</option></select></label>
+   <label>{period==="week"?"Chọn ngày trong tuần":"Chọn tháng"}<input type={period==="week"?"date":"month"} value={period==="week"?date:date.slice(0,7)} onChange={e=>setDate(period==="week"?e.target.value:e.target.value+"-01")}/></label>
+   <label>Nền tảng<select value={platform} onChange={e=>setPlatform(e.target.value)}><option value="all">Tất cả</option>{platformNames.map(x=><option key={x}>{x}</option>)}</select></label>
+   <label>Brand<select value={brand} onChange={e=>setBrand(e.target.value)}><option value="all">Tất cả</option>{brandNames.map(x=><option key={x}>{x}</option>)}</select></label>
+   <label>Category<select value={category} onChange={e=>setCategory(e.target.value)}><option value="all">Tất cả</option>{catNames.map(x=><option key={x}>{x}</option>)}</select></label>
+  </section>
+  {error&&<div className="notice error"><AlertCircle size={18}/><div><b>Chưa kết nối được dữ liệu</b><p>{error}. Kiểm tra biến môi trường Netlify và quyền đọc Google Sheets.</p></div></div>}
+  {data.warnings?.length>0&&<div className="notice"><AlertCircle size={18}/><div>{data.warnings.map((w,i)=><p key={i}>{w}</p>)}</div></div>}
+  <section className="kpis">
+   <Kpi icon={<TrendingUp/>} label="Tổng doanh thu" value={money(revenue)} note="Giá thực bán × SL"/>
+   <Kpi icon={<ShoppingBag/>} label="Số đơn hàng" value={integer(orders)} note="Đếm mã đơn duy nhất"/>
+   <Kpi icon={<Package/>} label="Sản phẩm bán ra" value={integer(qty)} note="Tổng số lượng"/>
+   <Kpi icon={<Eye/>} label="Visits" value={integer(visits)} note="Từ sheet TRAFFIC"/>
+   <Kpi icon={<Users/>} label="Potential buyers" value={integer(buyers)} note="Từ sheet TRAFFIC"/>
+  </section>
+  <section className="charts">
+   <Panel title="Tỷ trọng doanh thu theo nền tảng"><ResponsiveContainer width="100%" height={260}><PieChart><Pie data={platforms} dataKey="value" nameKey="name" innerRadius={62} outerRadius={94} paddingAngle={2}>{platforms.map((p,i)=><Cell key={p.name} fill={COLORS[i%COLORS.length]}/>)}</Pie><Tooltip formatter={v=>money(v)}/><Legend/></PieChart></ResponsiveContainer></Panel>
+   <Panel title={period==="week"?"Doanh thu theo ngày":"Doanh thu theo ngày trong tháng"}><ResponsiveContainer width="100%" height={260}><BarChart data={daily}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date"/><YAxis tickFormatter={v=>`${Math.round(v/1000000)}M`}/><Tooltip formatter={v=>money(v)}/><Bar dataKey="revenue" name="Doanh thu" fill="#e9a66f" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></Panel>
+   <Panel title="Doanh thu theo Category"><RankChart data={categories}/></Panel>
+   <Panel title="Doanh thu theo Brand"><RankChart data={brands}/></Panel>
+  </section>
+  <section className="panel full"><h2>Chi tiết theo Category</h2><table><thead><tr><th>Category</th><th>Doanh thu</th><th>Tỷ trọng</th></tr></thead><tbody>{categories.map(r=><tr key={r.name}><td>{r.name}</td><td>{money(r.value)}</td><td>{revenue?`${(r.value/revenue*100).toFixed(1)}%`:"—"}</td></tr>)}</tbody></table></section>
+  <footer>{loading?"Đang tải dữ liệu…":`Cập nhật gần nhất: ${data.updatedAt?new Date(data.updatedAt).toLocaleString("vi-VN"):"—"}`} · <button className="textBtn" onClick={load}>Tải lại dữ liệu</button></footer>
+ </div>;
+}
+function Kpi({icon,label,value,note}){return <div className="kpi"><div className="kpiIcon">{icon}</div><span>{label}</span><strong>{value}</strong><small>{note}</small></div>}
+function Panel({title,children}){return <div className="panel"><h2>{title}</h2>{children}</div>}
+function RankChart({data}){return <ResponsiveContainer width="100%" height={260}><BarChart data={data.slice(0,10)} layout="vertical" margin={{left:12,right:12}}><CartesianGrid strokeDasharray="3 3" horizontal={false}/><XAxis type="number" tickFormatter={v=>`${Math.round(v/1000000)}M`}/><YAxis type="category" dataKey="name" width={112} tick={{fontSize:11}}/><Tooltip formatter={v=>money(v)}/><Bar dataKey="value" name="Doanh thu" fill="#2563eb" radius={[0,5,5,0]}/></BarChart></ResponsiveContainer>}
+createRoot(document.getElementById("root")).render(<App/>);
